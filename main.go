@@ -33,9 +33,9 @@ func main() {
 
 	fmt.Println("Start server...")
 	if legacyMode {
-		http.HandleFunc("/_geol/_geolreg_p20_sr.php", geolreg)
-	} else {
 		http.HandleFunc("/_geol/_geolreg_p19_sr.php", geolreg)
+	} else {
+		http.HandleFunc("/_geol/_geolreg_p20_sr.php", geolreg)
 	}
 	
 	if err := http.ListenAndServe(":80", nil); err != nil {
