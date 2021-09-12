@@ -13,30 +13,30 @@ import (
 )
 
 var (
-	steamUrl         = "http://steamcommunity.com/games/1379930/members?p="
-	eversimUrl       = "http://eversim.com/_geol/_geolreg_p20_sr.php"
-	legacySteamUrl   = "http://steamcommunity.com/games/1029630/members?p="
-	legacyEversimUrl = "http://eversim.com/_geol/_geolreg_p19_sr.php"
+	steamUrls		 = [3]string{"http://steamcommunity.com/games/1029630/members?p=", "http://steamcommunity.com/games/1379930/members?p=", "http://steamcommunity.com/games/1683320/members?p="}
+	eversimUrls      = [3]string{"http://eversim.com/_geol/_geolreg_p19_sr.php", "http://eversim.com/_geol/_geolreg_p20_sr.php", "http://eversim.com/_geol/_geolreg_p21_sr.php"}
+	eversimHandlers  = [3]string{"/_geol/_geolreg_p19_sr.php", "/_geol/_geolreg_p20_sr.php", "/_geol/_geolreg_p21_sr.php"}
 	re               = regexp.MustCompile("steamcommunity.com/profiles/(.*)'")
 	keyFound         = false
-	legacyMode       = true
+	year       		 = 2
 	bytes            []byte
 )
 
 func main() {
-	legacyModePtr := flag.Bool("legacy", false, "Enables legacy mode for 2019 Edition activation")
+	yearPtr := flag.Int("year", 2021, "Edition of the game")
 	flag.Parse()
-	legacyMode = *legacyModePtr
-	if legacyMode {
-		fmt.Println("pnrGetID is running in legacy mode. Please be aware that legacy mode activates only 2019 Edition of Power and Revolution.")
+	year = *yearPtr - 2019
+	if year != 2 {
+		fmt.Println("pnrGetID is running in legacy mode. Please be aware that legacy mode activates only 2019 and 2020 Edition of Power and Revolution.")
 	}
 
-	fmt.Println("Start server...")
-	if legacyMode {
-		http.HandleFunc("/_geol/_geolreg_p19_sr.php", geolreg)
-	} else {
-		http.HandleFunc("/_geol/_geolreg_p20_sr.php", geolreg)
+	if year < 0 || year >= len(steamUrls) {
+		fmt.Println("Wrong year has been selected. 2021 will be used instead.")
+		year = 2
 	}
+
+	fmt.Println("Starting server...")
+	http.HandleFunc(eversimHandlers[year], geolreg)
 	
 	if err := http.ListenAndServe(":80", nil); err != nil {
 		log.Fatal(err)
@@ -78,10 +78,7 @@ func geolreg(w http.ResponseWriter, r *http.Request) {
 func geolregPost(id string, form url.Values) (body []byte, ok bool) {
 	form["v4"] = []string{"#SK" + id + "ZZZZZZZZZZ"}
 	form["v6"] = []string{id + "@steam."}
-	resp, err := http.PostForm(eversimUrl, form)		
-	if legacyMode {
-		resp, err = http.PostForm(legacyEversimUrl, form)
-	}
+	resp, err := http.PostForm(eversimUrls[year], form)
 	
 	if err != nil {
 		fmt.Println(err)
@@ -92,17 +89,14 @@ func geolregPost(id string, form url.Values) (body []byte, ok bool) {
 	if geolregExitCode > 0 {
 		keyFound = true
 		fmt.Printf("\n---ID found! Don't close this window! Use Steam ID: %s in 'Emulator Setting' tab of SmartSteamEmu and restart _start!\n", id)
-		fmt.Printf("---ID найден! Не закрывайте это окно! Используйте Steam ID: %s во вкладке 'Emulator Setting' в SmartSteamEmu и перезапустите _start!\n", id)
+		fmt.Printf("---ID найден! Не закрывайте это окно! Пропишите Steam ID: %s в файле \"%AppData%/Goldberg SteamEmu Saves\\settings\\user_steam_id.txt\" и перезапустите _start!\n", id)
 		return bytes, true
 	}
 	return
 }
 
 func grabSteamIds(page int) (matches [][]string, ok bool) {
-	resp, err := http.Get(steamUrl + strconv.Itoa(page))
-	if legacyMode {
-		resp, err = http.Get(legacySteamUrl + strconv.Itoa(page))
-	}
+	resp, err := http.Get(steamUrls[year] + strconv.Itoa(page))
 	if err != nil {
 		fmt.Println(err)
 		return
